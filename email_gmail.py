@@ -34,62 +34,48 @@ def save_to_json(data):
             f.write('\n')  # Agregar una línea nueva después de cada objeto JSON
 
 # Función para cargar los mensajes existentes desde el archivo JSON
+def load_existing_messages():
+    existing_messages = []
+    if os.path.exists('correos_gmail.json'):
+        with open('correos_gmail.json', 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        existing_messages.append(json.loads(line))
+                    except json.JSONDecodeError as e:
+                        print(f"Error loading JSON line: {e}")
+    return existing_messages
+
+# Iniciar la aplicación de Outlook
 try:
     outlook = win32com.client.Dispatch("Outlook.Application")
     namespace = outlook.GetNamespace("MAPI")
-    root_folder = namespace.Folders.Item(1)  # Acceder al primer perfil de Outlook
-
-    # Buscar la carpeta '[Gmail]' dentro de las carpetas raíz
-    gmail_folder = None
-    for folder in root_folder.Folders:
-        if folder.Name == '[Gmail]':
-            gmail_folder = folder
-            break
-    
-    if gmail_folder:
-        # Buscar la subcarpeta 'Enviados' dentro de '[Gmail]'
-        sent_folder = None
-        for subfolder in gmail_folder.Folders:
-            if subfolder.Name == 'Enviados':
-                sent_folder = subfolder
-                break
-        
-        if sent_folder:
-            # Imprimir todos los mensajes en la carpeta 'Enviados'
-            print(f"Mensajes en la carpeta 'Enviados':")
-            for message in sent_folder.Items:
-                print(f" - Asunto: {message.Subject}")
-        else:
-            print("Subfolder 'Enviados' not found under '[Gmail]'.")
-    else:
-        print("Folder '[Gmail]' not found.")
-    
+    namespace.Logon()  # Esto debería pedir el perfil si está configurado así
 except Exception as e:
-    print(f"Error initializing Outlook or accessing folders: {e}")
+    print(f"Error initializing Outlook: {e}")
+    exit()
 
-
-# Función para encontrar la carpeta de Bandeja de salida de la cuenta de Gmail dentro de Outlook
+# Función para encontrar la carpeta de enviados de la cuenta de Gmail dentro de Outlook
 def get_sent_folder_for_gmail():
     try:
         for account in namespace.Folders:
-            for folder in account.Folders:
-                if folder.Name == "[Gmail]":
-                    for subfolder in folder.Folders:
-                        print(subfolder)
-                        if subfolder.Name.lower() == "enviados":
-                            return subfolder
+            if "gmail.com" in account.Name:  # Asegúrate de que este filtro se ajuste al nombre de tu cuenta
+                for folder in account.Folders:
+                    if folder.Name.lower() == "sent items" or folder.Name.lower() == "enviados":
+                        return folder
     except Exception as e:
         print(f"Error accessing folders for Gmail account: {e}")
     return None
 
-# Obtener la carpeta de Bandeja de salida para la cuenta de Gmail dentro de Outlook
+# Obtener la carpeta de enviados para la cuenta de Gmail dentro de Outlook
 sent_folder = get_sent_folder_for_gmail()
 
 if not sent_folder:
-    print(f"Outbox folder for Gmail account not found.")
+    print(f"Sent folder for Gmail account not found.")
     exit()
 else:
-    print(f"Total items in Outbox folder for Gmail account: {sent_folder.Items.Count}")
+    print(f"Total items in Sent folder for Gmail account: {sent_folder.Items.Count}")
 
 # Función para procesar nuevos mensajes y guardar solo los nuevos en el archivo JSON
 def process_new_messages():
@@ -98,7 +84,7 @@ def process_new_messages():
         existing_subjects = {entry['Subject'] for entry in existing_messages}
         new_entries = []
 
-        # Iterar sobre los mensajes no procesados en la carpeta de Bandeja de salida
+        # Iterar sobre los mensajes no procesados en la carpeta de enviados
         for message in sent_folder.Items:
             if message.Subject not in existing_subjects:
                 sender = get_sender_email_address(message)
