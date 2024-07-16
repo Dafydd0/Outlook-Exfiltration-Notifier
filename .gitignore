@@ -1,0 +1,11 @@
+# Ignorar el archivo correos.json
+correos.json
+
+# Ignorar la carpeta venv (entorno virtual de Python)
+venv/
+
+# Ignorar la carpeta attachments
+attachments/
+
+# Ignorar la carpeta _pycache_
+_pyache_/
