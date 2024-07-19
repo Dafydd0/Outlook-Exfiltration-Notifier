@@ -42,13 +42,8 @@ def load_existing_messages(filename='correos.json'):
         return [json.loads(line) for line in f]
 
 # Función para encontrar la carpeta de Enviados de la cuenta de Gmail dentro de Outlook
-def get_sent_folder_for_gmail():
+def get_sent_folder_for_gmail(namespace):
     try:
-        outlook = win32com.client.Dispatch("Outlook.Application")
-        namespace = outlook.GetNamespace("MAPI")
-        root_folder = namespace.Folders.Item(1)  # Acceder al primer perfil de Outlook
-
-        # Buscar la carpeta '[Gmail]' dentro de las carpetas raíz
         for account in namespace.Folders:
             for folder in account.Folders:
                 if folder.Name == "[Gmail]":
@@ -59,17 +54,40 @@ def get_sent_folder_for_gmail():
         print(f"Error accessing folders for Gmail account: {e}")
     return None
 
-# Obtener la carpeta de Enviados para la cuenta de Gmail dentro de Outlook
-sent_folder = get_sent_folder_for_gmail()
+# Función para obtener la carpeta de Enviados de Outlook
+def get_sent_folder_for_outlook(namespace):
+    try:
+        sent = namespace.GetDefaultFolder(5)  # 5 representa la carpeta de enviados en Outlook
+        return sent
+    except Exception as e:
+        print(f"Error accessing Sent folder: {e}")
+        return None
 
-if not sent_folder:
-    print(f"Sent folder for Gmail account not found.")
-    exit()
-else:
-    print(f"Total items in Sent folder for Gmail account: {sent_folder.Items.Count}")
+# Función para determinar el tipo de cuenta y devolver la carpeta de Enviados correspondiente
+def get_sent_folder():
+    try:
+        outlook = win32com.client.Dispatch("Outlook.Application")
+        namespace = outlook.GetNamespace("MAPI")
+        namespace.Logon()  # Esto debería pedir el perfil si está configurado así
+
+        # Intentar obtener la carpeta de Gmail
+        sent_folder = get_sent_folder_for_gmail(namespace)
+        if sent_folder:
+            print("Using Gmail account.")
+            return sent_folder
+
+        # Si no se encuentra la carpeta de Gmail, usar Outlook
+        sent_folder = get_sent_folder_for_outlook(namespace)
+        if sent_folder:
+            print("Using Outlook account.")
+            return sent_folder
+
+    except Exception as e:
+        print(f"Error initializing Outlook or accessing folders: {e}")
+        return None
 
 # Función para procesar nuevos mensajes y guardar solo los nuevos en el archivo JSON
-def process_new_messages():
+def process_new_messages(sent_folder):
     try:
         existing_messages = load_existing_messages()  # Cargar mensajes existentes desde el archivo JSON
         existing_subjects = {entry['Subject'] for entry in existing_messages}
@@ -104,10 +122,19 @@ def process_new_messages():
     except Exception as e:
         print(f"Error processing emails: {e}")
 
+# Obtener la carpeta de Enviados
+sent_folder = get_sent_folder()
+
+if not sent_folder:
+    print(f"Sent folder not found.")
+    exit()
+else:
+    print(f"Total items in Sent folder: {sent_folder.Items.Count}")
+
 # Bucle principal para verificar nuevos mensajes cada 10 segundos
 while True:
     try:
-        process_new_messages()
+        process_new_messages(sent_folder)
         time.sleep(10)  # Esperar 10 segundos antes de volver a verificar
     except Exception as e:
         print(f"Error in main loop: {e}")
