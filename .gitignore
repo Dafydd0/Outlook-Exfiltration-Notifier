@@ -9,3 +9,6 @@ attachments/
 
 # Ignorar la carpeta _pycache_
 _pyache_/
+
+build/
+dist/
