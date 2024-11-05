@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='email-monitor',
+    name='email_monitor',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

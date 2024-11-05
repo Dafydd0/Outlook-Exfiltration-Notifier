@@ -4,15 +4,16 @@ import win32com.client
 import json
 from datetime import datetime
 import sys
+from pathlib import PureWindowsPath, PurePosixPath
 
 # Ruta del archivo de log
 LOG_FILE = "C:\\Program Files (x86)\\ossec-agent\\active-response\\active-responses.log" if os.name == 'nt' else "/var/ossec/logs/active-responses.log"
 
-# Función para escribir en el archivo de depuración, similar al primer script
+
 def write_debug_file(ar_name, msg):
     with open(LOG_FILE, mode="a") as log_file:
-        ar_name_posix = str(ar_name)
-        log_file.write(f"{datetime.now().strftime('%Y/%m/%d %H:%M:%S')} {ar_name_posix}: {msg}\n")
+        ar_name_posix = str(PurePosixPath(PureWindowsPath(ar_name[ar_name.find("active-response"):])))
+        log_file.write(str(datetime.now().strftime('%Y/%m/%d %H:%M:%S')) + " " + ar_name_posix + ": " + msg + "\n")
 
 # Redefinir la función print para incluir timestamp y escribir en el archivo de log
 def print_with_timestamp(*args, **kwargs):
@@ -209,15 +210,16 @@ sent_folder = get_sent_folder()
 
 if not sent_folder:
     print_with_timestamp("Sent folder not found.")
-    exit()
+    #exit()
 else:
     print_with_timestamp(f"Total items in Sent folder: {sent_folder.Items.Count}")
 
 # Bucle principal para verificar nuevos mensajes cada 10 segundos
 while True:
     try:
+        print_with_timestamp("Ejecutando Código")
         process_new_messages(sent_folder)
-        time.sleep(5)  # Esperar 10 segundos antes de volver a verificar
+        time.sleep(5)  # Esperar 5 segundos antes de volver a verificar
     except Exception as e:
         print_with_timestamp(f"Error in main loop: {e}")
         time.sleep(5)
